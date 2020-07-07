@@ -1,0 +1,357 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[2]:
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# In[3]:
+
+
+get_ipython().system(' pip3 install pymongo==3.1')
+
+
+# In[4]:
+
+
+from pymongo import MongoClient as mc
+
+
+# In[5]:
+
+
+import os, time,psutil,gc
+
+
+# In[124]:
+
+
+get_ipython().system('mongoimport -d sismos -c catalogo --type csv --file /Users/bere/Documents/catalogo.csv --headerline')
+
+
+# In[6]:
+
+
+gc.enable()
+
+
+# In[7]:
+
+
+# cliente mongoDb se esta trabajando en la misma maquina
+cliente =mc("localhost")
+
+
+# In[8]:
+
+
+# conectarse a la  base de datos
+db= cliente.sismos
+
+
+# In[9]:
+
+
+# observar las colecciones  
+db.collection_names(include_system_collections=False)
+
+
+# In[10]:
+
+
+coleccion=db.catalogo
+
+
+# In[11]:
+
+
+coleccion.find_one({"Magnitud":{"$gt":7}})
+
+
+# In[12]:
+
+
+df = pd.DataFrame(list(coleccion.find()))
+
+
+# In[13]:
+
+
+df.head()
+
+
+# In[14]:
+
+
+df
+
+
+# In[15]:
+
+
+### modificar 
+df["Magnitud"]= df["Magnitud"].replace('no calculable',np.nan)
+
+df["Profundidad"]= df["Profundidad"].replace('en revision',np.nan)
+df["Profundidad"]= df["Profundidad"].replace('menos de 1',np.nan)
+
+
+# In[16]:
+
+
+df["Profundidad"].describe()
+pd.to_numeric(df["Profundidad"])
+
+
+# In[17]:
+
+
+
+
+df["Fecha"]=pd.to_datetime(df["Fecha"])
+df["FechaUTC"]=pd.to_datetime(df["Fecha UTC"])
+df["Hora"]=pd.to_datetime(df["Hora"])
+df["Hora UTC"]=pd.to_datetime(df["Hora UTC"])
+
+
+# In[18]:
+
+
+mag_6= df [df["Magnitud"]>= 6]
+
+
+# In[19]:
+
+
+prof_50=df [df["Profundidad"]>= 50]
+prof_50=df [df["Profundidad"]>= 100]
+
+
+# In[20]:
+
+
+mag_6
+
+
+# In[21]:
+
+
+prof_50
+
+
+# In[27]:
+
+
+mag_6["dia"]= mag_6["Fecha"].dt.dayofyear
+
+
+# In[28]:
+
+
+mag_6
+
+
+# In[26]:
+
+
+
+
+
+# In[29]:
+
+
+x= [i for i in range(0,366)]
+y= [None]* len(x)
+
+
+# In[31]:
+
+
+dia =list(mag_6["dia"])
+magnitud= list(mag_6["Magnitud"])
+
+
+# In[32]:
+
+
+contador= 0
+for i in dia:
+    y[i]=magnitud[contador]
+    contador =+1
+    
+
+
+# In[34]:
+
+
+plt.plot(x,y)
+plt.show()
+
+
+# In[37]:
+
+
+### consultas 
+df["año"]= df["Fecha"].dt.year
+
+
+
+    
+
+
+# In[56]:
+
+
+año=df["año"]
+año.describe()
+
+
+
+# In[48]:
+
+
+contador=0
+for i in año:
+    if i==2020:
+        contador +=1
+print(contador)
+
+
+# In[59]:
+
+
+### 2 consulta opción 1
+
+
+consulta2= df [df["año"]==2020]
+consulta2
+Magnitud=list(consulta2["Magnitud"])
+
+Magnitud
+
+
+
+# In[65]:
+
+
+contador=0
+for i in Magnitud:
+    if i>7:
+        contador +=1
+print( f"los simos:{contador}" )
+
+
+# In[64]:
+
+
+###  opción  2
+opcion2= list(df["Magnitud"])
+opcion2
+
+contador=0
+for i in opcion2:
+    if i>7:
+        contador +=1
+print(f"los simos:{contador}")
+
+
+# In[70]:
+
+
+# consulta 3
+consulta3= df [df["Profundidad"]>=100]
+consulta3
+consulta= list(consulta3["año"])
+consulta
+
+
+# In[71]:
+
+
+contador=0
+for i in consulta:
+    if i==1986:
+        contador +=1
+print(f"los simos profundos :{contador}")
+
+
+# In[81]:
+
+
+#### consulta 4
+consulta4= df [df["Fecha"]=="1999-05-19"]
+Conteo=consulta4["_id"].count()
+Magnitud=list(consulta4["Magnitud"])
+print(f"Los sismos  fueron:{Conteo}")
+print(f"Con magnitud:{Magnitud}")
+
+
+# In[163]:
+
+
+#### Consulta 5
+estado= []
+
+for string in df["Referencia de localizacion"]:
+    estado.append (string[-3:])
+pd.Series(estado).value_counts().head(5)
+
+df["estado"]=pd.Series(estado)
+
+
+# In[170]:
+
+
+n= pd.concat([df["estado"],df["Magnitud"]], axis=1)
+n["estado"].value_counts().head(5)
+
+
+# In[172]:
+
+
+variable= n['Magnitud'].sort_values(ascending=False).head(20).index.to_list()
+variable1=n.iloc[variable]
+
+variable1["estado"].value_counts()
+
+
+# In[ ]:
+
+
+n["estado"].value_counts().head(5)
+
+
+# In[174]:
+
+
+
+n["Magnitud"].value_counts(5)
+variable=n['Magnitud'].sort_values(ascending=False).head(20).index.to_list()
+pd.Series(variable).value_counts()
+
+
+####  consulta 7
+
+variable= n['Magnitud'].sort_values(ascending=False).head(5).index.to_list()
+variable1=n.iloc[variable]
+
+variable1["estado"].value_counts()
+
+
+
+
+# In[175]:
+
+
+n["estado"].value_counts().head(5)
+
+
+# In[ ]:
+
+
+
+
